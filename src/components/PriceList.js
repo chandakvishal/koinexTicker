@@ -1,19 +1,48 @@
 import React, { Component } from 'react';
 import {
     StyleSheet,
-    ScrollView
+    ScrollView,
+    RefreshControl
 } from 'react-native';
+
 import axios from 'axios';
 import Currency from './Currency'
 import CurrencyStats from './CurrencyStats'
 
 class PriceList extends Component {
 
-    state = { ticker: { price: {}, stats: {} }  };
+    state = { ticker: { price: {}, stats: {} }, refreshing: false };
 
     componentWillMount() {
+        this.dataFetch();
+    }
+
+    dataFetch() {
         axios.get('https://koinex.in/api/ticker')
-             .then(response => this.setState({ ticker: response.data }))
+            .then(response => this.setState({ ticker: response.data }))
+            .catch((error) => {
+                if (error.response) {
+                    // The request was made and the server responded with a status code
+                    // that falls out of the range of 2xx
+                    console.log(error.response.data);
+                    console.log(error.response.status);
+                    console.log(error.response.headers);
+                    // Error Code 429 is Throttling Exception
+                    if (error.response.status == 429) {
+                        alert("Dude, slow down!");
+                    }
+                } else if (error.request) {
+                    // The request was made but no response was received
+                    // `error.request` is an instance of XMLHttpRequest in the browser and an instance of
+                    // http.ClientRequest in node.js
+                    console.log(error.request);
+                } else {
+                    // Something happened in setting up the request that triggered an Error
+                    console.log(error.message);
+                }
+                // Swallow the Error as we cannot do anything about throttling
+                console.log(error);
+            });
     }
 
     renderPrice() {
@@ -41,34 +70,30 @@ class PriceList extends Component {
     }
 
     render() {
-        console.log(this.state)
-        this.renderPrice();
-        // const { textStyle, viewStyle } = styles;
         return (
-            <ScrollView>
+            <ScrollView
+                refreshControl={
+                    <RefreshControl
+                        refreshing={this.state.refreshing}
+                        onRefresh={this._onRefresh.bind(this)}
+                    />
+                }>
                 {this.renderPrice()}
             </ScrollView>
         );
-    };
-}
+    }
 
-// const styles = StyleSheet.create({
-//   textStyle: {
-//     // flex: 1,
-//     fontSize: 20,
-// },
-// viewStyle: {
-//     backgroundColor: '#F8F8F8',
-//     justifyContent: 'center',
-//     alignItems: 'center',
-//     height: 60,
-//     paddingTop: 15,
-//     shadowColor: '#000',
-//     shadowOffset: { width:2, height:2 },
-//     shadowOpacity: 0.5,
-//     elevation: 2,
-//     position: 'relative'
-// }
-// });
+    _onRefresh() {
+        if (this.state.refreshing) {
+            return;
+        }
+
+        console.log('Refreshing');
+
+        this.dataFetch();
+        this.setState({ refreshing: false });
+
+    }
+}
 
 export default PriceList;
